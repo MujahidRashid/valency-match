@@ -512,40 +512,55 @@ function getConnectedComponent(startRow, startCol) {
 function findZeroSumSubset(component) {
   let bestMatch = null;
 
-  for (let size = 2; size <= Math.min(component.length, 6); size++) {
-    const result = findConnectedSubsetWithSum(component, size, 0);
-    if (result && (!bestMatch || result.length > bestMatch.length)) {
-      bestMatch = result;
+  for (let size = 2; size <= Math.min(component.length, 5); size++) {
+    const results = findAllConnectedSubsetsWithSum(component, size, 0);
+    for (const result of results) {
+      const formula = generateFormula(result);
+      if (COMPOUND_NAMES[formula]) {
+        if (!bestMatch || result.length > bestMatch.length) {
+          bestMatch = result;
+        }
+      }
     }
   }
 
   return bestMatch;
 }
 
-function findConnectedSubsetWithSum(component, targetSize, targetSum) {
+function findAllConnectedSubsetsWithSum(component, targetSize, targetSum) {
   const key = (r, c) => r * COLS + c;
   const componentSet = new Set(component.map(cell => key(cell.row, cell.col)));
   const componentMap = new Map(component.map(cell => [key(cell.row, cell.col), cell]));
+  const results = [];
+  const seen = new Set();
 
   for (let i = 0; i < component.length; i++) {
-    const result = dfsSearch(
+    dfsSearchAll(
       [component[i]],
       IONS[component[i].ionIndex].charge,
       new Set([key(component[i].row, component[i].col)]),
       targetSize,
       targetSum,
       componentSet,
-      componentMap
+      componentMap,
+      results,
+      seen
     );
-    if (result) return result;
   }
 
-  return null;
+  return results;
 }
 
-function dfsSearch(current, currentSum, visited, targetSize, targetSum, componentSet, componentMap) {
+function dfsSearchAll(current, currentSum, visited, targetSize, targetSum, componentSet, componentMap, results, seen) {
   if (current.length === targetSize) {
-    return currentSum === targetSum ? [...current] : null;
+    if (currentSum === targetSum) {
+      const signature = [...visited].sort().join(',');
+      if (!seen.has(signature)) {
+        seen.add(signature);
+        results.push([...current]);
+      }
+    }
+    return;
   }
 
   const candidates = new Set();
@@ -574,23 +589,11 @@ function dfsSearch(current, currentSum, visited, targetSize, targetSum, componen
     visited.add(candKey);
     current.push(cell);
 
-    const result = dfsSearch(
-      current,
-      currentSum + charge,
-      visited,
-      targetSize,
-      targetSum,
-      componentSet,
-      componentMap
-    );
-
-    if (result) return result;
+    dfsSearchAll(current, currentSum + charge, visited, targetSize, targetSum, componentSet, componentMap, results, seen);
 
     current.pop();
     visited.delete(candKey);
   }
-
-  return null;
 }
 
 // ============================================================
