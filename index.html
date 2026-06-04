@@ -67,15 +67,63 @@ body {
   display: block;
 }
 
+#info-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  max-width: 360px;
+  margin-top: 8px;
+}
+
 #next-block {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
   padding: 6px 12px;
   background: rgba(10, 20, 40, 0.8);
   border: 1px solid #1a3a5c;
   border-radius: 4px;
+}
+
+#history-panel {
+  flex: 1;
+  background: rgba(10, 20, 40, 0.8);
+  border: 1px solid #1a3a5c;
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow: hidden;
+}
+
+#history-panel .history-title {
+  color: #8892a4;
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+#history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#history-list li {
+  font-size: 11px;
+  color: #c0d0e0;
+  padding: 1px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#history-list li .hist-formula {
+  color: #ffeb3b;
+  font-weight: bold;
+}
+
+#history-list li .hist-name {
+  color: #80cbc4;
+  margin-left: 4px;
 }
 
 #next-block span {
@@ -215,9 +263,15 @@ body {
   <div id="formula-popup"></div>
 </div>
 
-<div id="next-block">
-  <span>NEXT:</span>
-  <canvas id="next-block-preview"></canvas>
+<div id="info-row">
+  <div id="next-block">
+    <span>NEXT:</span>
+    <canvas id="next-block-preview"></canvas>
+  </div>
+  <div id="history-panel">
+    <div class="history-title">RECENT COMPOUNDS</div>
+    <ul id="history-list"></ul>
+  </div>
 </div>
 
 <div id="controls">
@@ -262,6 +316,7 @@ const state = {
   isFlashing: false,
   formulaPopups: [],
   inputQueue: [],
+  compoundHistory: [],
 };
 
 // ============================================================
@@ -300,10 +355,12 @@ function resetGame() {
   state.isFlashing = false;
   state.formulaPopups = [];
   state.inputQueue = [];
+  state.compoundHistory = [];
   state.nextIonIndex = randomIonIndex();
   spawnBlock();
   document.getElementById('overlay').classList.add('hidden');
   updateScoreDisplay();
+  renderHistory();
 }
 
 function randomIonIndex() {
@@ -537,6 +594,18 @@ function dfsSearch(current, currentSum, visited, targetSize, targetSum, componen
 }
 
 // ============================================================
+// COMPOUND NAMES
+// ============================================================
+const COMPOUND_NAMES = {
+  'NaCl': 'Sodium Chloride',
+  'MgCl₂': 'Magnesium Chloride',
+  'AlCl₃': 'Aluminium Chloride',
+  'Na₂O': 'Sodium Oxide',
+  'MgO': 'Magnesium Oxide',
+  'Al₂O₃': 'Aluminium Oxide',
+};
+
+// ============================================================
 // CHEMICAL FORMULA GENERATION
 // ============================================================
 function generateFormula(cells) {
@@ -587,10 +656,12 @@ function startFlashAnimation(cells) {
   state.flashStartTime = performance.now();
 
   const formula = generateFormula(cells);
+  const name = COMPOUND_NAMES[formula] || 'Ionic Compound';
   const avgCol = cells.reduce((s, c) => s + c.col, 0) / cells.length;
   const avgRow = cells.reduce((s, c) => s + c.row, 0) / cells.length;
 
-  showFormulaPopup(formula, avgCol * BLOCK_SIZE, avgRow * BLOCK_SIZE);
+  showFormulaPopup(formula, name, avgCol * BLOCK_SIZE, avgRow * BLOCK_SIZE);
+  addToHistory(formula, name);
 }
 
 function updateFlashAnimation(now) {
@@ -658,11 +729,11 @@ function findAnyMatch() {
 // ============================================================
 // FORMULA POPUP
 // ============================================================
-function showFormulaPopup(formula, x, y) {
+function showFormulaPopup(formula, name, x, y) {
   const popup = document.getElementById('formula-popup');
   const el = document.createElement('div');
   el.className = 'formula-text';
-  el.textContent = formula;
+  el.textContent = formula + ' — ' + name;
   el.style.left = x + 'px';
   el.style.top = y + 'px';
   popup.appendChild(el);
@@ -670,6 +741,25 @@ function showFormulaPopup(formula, x, y) {
   setTimeout(() => {
     if (el.parentNode) el.parentNode.removeChild(el);
   }, 1500);
+}
+
+function addToHistory(formula, name) {
+  state.compoundHistory.unshift({ formula, name });
+  if (state.compoundHistory.length > 5) {
+    state.compoundHistory.pop();
+  }
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  for (const entry of state.compoundHistory) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="hist-formula">' + entry.formula + '</span>'
+      + '<span class="hist-name">' + entry.name + '</span>';
+    list.appendChild(li);
+  }
 }
 
 // ============================================================
